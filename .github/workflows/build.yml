@@ -49,6 +49,7 @@ jobs:
 
       # 8. Run OWASP ZAP baseline scan
       - run: |
+          mkdir zap-output
           docker run --rm --network zapnet \
             -v $(pwd):/zap/wrk \
             ghcr.io/zaproxy/zaproxy:stable \
@@ -62,7 +63,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: zap-report
-          path: zap-report.html
+          path: zap-output/zap-report.html
+
 
       # 10. SonarQube scan
       - uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
