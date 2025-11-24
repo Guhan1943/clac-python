@@ -39,6 +39,8 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       # Build Docker image
+      - run: docker build -t fastapi-calculator .
+
       # 7. Run Docker container on shared network
       - run: |
           docker network create zapnet
