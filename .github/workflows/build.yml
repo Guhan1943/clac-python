@@ -30,10 +30,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install fastapi uvicorn pytest pytest-cov httpx
 
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$(pwd)/src:$PYTHONPATH" >> $GITHUB_ENV
+
+
       # 4. Run unit tests with coverage
       - name: Run tests with coverage
         run: |
-          pytest --cov=main --cov-report=xml
+          pytest --cov=src --cov-branch --cov-report=xml
+
 
       # 5. Upload coverage to SonarQube
       - name: SonarQube Scan
