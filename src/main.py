@@ -1,20 +1,35 @@
 from fastapi import FastAPI
-import sqlite3
+from pydantic import BaseModel
 
-app = FastAPI()
+app = FastAPI(title="Calculator API")
 
-def get_db():
-    return sqlite3.connect("users.db")
+class Numbers(BaseModel):
+    a: float
+    b: float
 
 
-@app.get("/user/{username}")
-def get_user(username: str):
-    conn = get_db()
-    
-    # ❌ VULNERABLE: Building SQL query using string concatenation
-    query = f"SELECT * FROM users WHERE username = '{username}'"
-    
-    result = conn.execute(query).fetchone()
-    conn.close()
-    
-    return {"user": result}
+@app.post("/add")
+def add(nums: Numbers):
+    return {"result": nums.a + nums.b}
+
+
+@app.post("/subtract")
+def subtract(nums: Numbers):
+    return {"result": nums.a - nums.b}
+
+
+@app.post("/multiply")
+def multiply(nums: Numbers):
+    return {"result": nums.a * nums.b}
+
+
+@app.post("/divide")
+def divide(nums: Numbers):
+    if nums.b == 0:
+        return {"error": "Cannot divide by zero!"}
+    return {"result": nums.a / nums.b}
+
+
+@app.get("/")
+def home():
+    return {"message": "Welcome to the FastAPI Calculator!"}
