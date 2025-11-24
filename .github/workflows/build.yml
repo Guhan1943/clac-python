@@ -10,9 +10,19 @@ on:
 jobs:
   test-and-sonarqube:
     runs-on: ubuntu-latest
+    services:
+      fastapi-app:
+        image: fastapi-calculator:latest
+        ports:
+          - 8000:8000
+        options: >-
+          --health-cmd "curl -f http://localhost:8000/ || exit 1"
+          --health-interval 5s
+          --health-timeout 2s
+          --health-retries 5
 
     steps:
-      # 1. Checkout the repo
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -24,69 +34,49 @@ jobs:
         with:
           python-version: 3.11
 
-      # 3. Install dependencies
+      # 3. Install Python dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install fastapi uvicorn pytest pytest-cov httpx
 
+      # 4. Set PYTHONPATH to find src
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$(pwd)/src:$PYTHONPATH" >> $GITHUB_ENV
 
-
-      # 4. Run unit tests with coverage
+      # 5. Run unit tests with coverage
       - name: Run tests with coverage
         run: |
           pytest --cov=src --cov-branch --cov-report=xml
-  jobs:
-    test-and-sonarqube:
-      runs-on: ubuntu-latest
-      services:
-        # Run your app in Docker
-        fastapi-app:
-          image: fastapi-calculator:latest
-          ports:
-            - 8000:8000
-          options: >-
-            --health-cmd "curl -f http://localhost:8000/ || exit 1"
-            --health-interval 5s
-            --health-timeout 2s
-            --health-retries 5
 
-        steps:
-          - uses: actions/checkout@v4
+      # 6. Build and run FastAPI Docker container
+      - name: Build Docker image
+        run: |
+          docker build -t fastapi-calculator .
 
-          - name: Set up Python
-            uses: actions/setup-python@v4
-            with:
-              python-version: 3.11
+      - name: Run Docker container
+        run: |
+          docker run -d --name fastapi-app -p 8000:8000 fastapi-calculator
+          # wait for app to be up
+          sleep 10
 
-          - name: Install dependencies
-            run: |
-              python -m pip install --upgrade pip
-              pip install pytest pytest-cov httpx
+      # 7. Run OWASP ZAP baseline scan
+      - name: Run OWASP ZAP scan
+        run: |
+          docker run --rm owasp/zap2docker-stable zap-baseline.py \
+          -t http://localhost:8000 \
+          -r zap-report.html
 
-          - name: Run tests with coverage
-            run: |
-              pytest --cov=src --cov-branch --cov-report=xml
+      # 8. Upload ZAP report as artifact
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: zap-report.html
 
-          - name: Run OWASP ZAP scan
-            run: |
-              docker run --rm owasp/zap2docker-stable zap-baseline.py \
-              -t http://localhost:8000 \
-              -r zap-report.html
-
-          - name: Upload coverage to SonarQube
-            uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
-            env:
-              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-              SONAR_SCANNER_OPTS: -Dsonar.python.coverage.reportPaths=./coverage.xml
-
-
-
-      # 5. Upload coverage to SonarQube
-          - name: SonarQube Scan
-            uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
-            env:
-              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-              SONAR_SCANNER_OPTS: -Dsonar.python.coverage.reportPaths=./coverage.xml
+      # 9. Run SonarQube scan
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_SCANNER_OPTS: -Dsonar.python.coverage.reportPaths=./coverage.xml
