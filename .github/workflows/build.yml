@@ -38,11 +38,55 @@ jobs:
       - name: Run tests with coverage
         run: |
           pytest --cov=src --cov-branch --cov-report=xml
+  jobs:
+    test-and-sonarqube:
+      runs-on: ubuntu-latest
+      services:
+        # Run your app in Docker
+        fastapi-app:
+          image: fastapi-calculator:latest
+          ports:
+            - 8000:8000
+          options: >-
+            --health-cmd "curl -f http://localhost:8000/ || exit 1"
+            --health-interval 5s
+            --health-timeout 2s
+            --health-retries 5
+
+        steps:
+          - uses: actions/checkout@v4
+
+          - name: Set up Python
+            uses: actions/setup-python@v4
+            with:
+              python-version: 3.11
+
+          - name: Install dependencies
+            run: |
+              python -m pip install --upgrade pip
+              pip install pytest pytest-cov httpx
+
+          - name: Run tests with coverage
+            run: |
+              pytest --cov=src --cov-branch --cov-report=xml
+
+          - name: Run OWASP ZAP scan
+            run: |
+              docker run --rm owasp/zap2docker-stable zap-baseline.py \
+              -t http://localhost:8000 \
+              -r zap-report.html
+
+          - name: Upload coverage to SonarQube
+            uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
+            env:
+              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+              SONAR_SCANNER_OPTS: -Dsonar.python.coverage.reportPaths=./coverage.xml
+
 
 
       # 5. Upload coverage to SonarQube
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_SCANNER_OPTS: -Dsonar.python.coverage.reportPaths=./coverage.xml
+          - name: SonarQube Scan
+            uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
+            env:
+              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+              SONAR_SCANNER_OPTS: -Dsonar.python.coverage.reportPaths=./coverage.xml
