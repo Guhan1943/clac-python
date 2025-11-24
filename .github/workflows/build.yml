@@ -51,11 +51,14 @@ jobs:
       - run: |
           mkdir zap-output
           docker run --rm --network zapnet \
-            -v $(pwd):/zap/wrk \
+            -v $(pwd)/zap-output:/zap/reports \
             ghcr.io/zaproxy/zaproxy:stable \
             /zap/zap-baseline.py \
             -t http://fastapi-app:8000 \
-            -r zap-report.html
+            -x zap-report.xml \
+            -r zap-report.html \
+            -J zap-report.json \
+            -w zap-warnings.md
 
 
 
