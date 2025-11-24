@@ -36,7 +36,7 @@ def test_multiply():
 def test_divide_normal():
     response = client.post("/divide", json={"a": 20, "b": 5})
     assert response.status_code == 200
-    assert response.json()["result"] == 4.0
+    assert response.json()["result"] == 4
     assert response.json()["operation"] == "divide"
 
 
