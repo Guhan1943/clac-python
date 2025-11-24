@@ -57,6 +57,7 @@ jobs:
           /zap/zap-baseline.py \
           -t http://fastapi-app:8000 \
           --autooff \
+          -I \
           -x zap-report.xml \
           -r zap-report.html \
           -J zap-report.json \
