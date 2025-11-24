@@ -39,22 +39,22 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       # Build Docker image
-      - run: docker build -t fastapi-calculator .
-
-
-      # 7. Run Docker container
+      # 7. Run Docker container on shared network
       - run: |
-          docker run -d --name fastapi-app -p 8000:8000 fastapi-calculator
-          sleep 10  # wait for app to start
+          docker network create zapnet
+          docker run -d --network zapnet --name fastapi-app fastapi-calculator
+          sleep 20  # wait for app to start
 
       # 8. Run OWASP ZAP baseline scan
       - run: |
-          docker run --rm \
+          docker run --rm --network zapnet \
             -v $(pwd):/zap/wrk \
             ghcr.io/zaproxy/zaproxy:stable \
             /zap/zap-baseline.py \
-            -t http://localhost:8000 \
+            -t http://fastapi-app:8000 \
             -r zap-report.html
+
+
 
       # 9. Upload ZAP report
       - uses: actions/upload-artifact@v4
